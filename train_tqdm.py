@@ -21,7 +21,6 @@ def train(model, dataloader, criterion, optimizer, device):
     running_loss = 0.0
     for batch in tqdm(train_loader, desc="Training"): 
         images, questions, answers = batch['image'], batch['question'], batch['answer']
-        print(images)
         images = images.to(device)
         questions = questions.to(device)
         answers = answers.to(device)
@@ -48,18 +47,23 @@ def validate(model, dataloader, criterion, device):
     correct = 0
     total = 0
     with torch.no_grad():
-        for images, questions, answers in tqdm(dataloader, desc="Validating"): 
-            print(images) 
+        for batch in tqdm(dataloader, desc="Validating"): 
+            images, questions, answers = batch['image'], batch['question'], batch['answer']
+#             print(images) 
             images = images.to(device)
             questions = questions.to(device)
             answers = answers.to(device)
 
-            outputs = model(images, questions)
-            _, predicted = outputs.max(1)
-            total += answers.size(0)
-            correct += predicted.eq(answers).sum().item()
-            
-            loss = criterion(outputs, answers)
+            logits, gen_seq = model(images, questions)
+            print(f'the generated sequence: {gen_seq}')
+            if logits.size(1) < answers.size(1):
+                answers = answers[:, :logits.size(1)]
+            elif logits.size(1) > answers.size(1):
+                logits = logits[:, :answers.size(1)]
+            logits_reshaped = logits.contiguous().view(-1, logits.size(-1))
+            answers_reshaped = answers.contiguous().view(-1)
+
+            loss = criterion(logits_reshaped, answers_reshaped)
             running_loss += loss.item()
     
     avg_loss = running_loss / len(dataloader)
