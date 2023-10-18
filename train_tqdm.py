@@ -4,7 +4,9 @@ import torch.optim as optim
 from data_loader import get_loaders
 from model import VQAModel
 from tqdm import tqdm 
+from transformers import GPT2Tokenizer
 
+tokenizer = GPT2Tokenizer.from_pretrained("cemilcelik/distilgpt2_pubmed")
 BATCH_SIZE = 16
 EPOCHS = 10
 LEARNING_RATE = 1e-4
@@ -49,25 +51,31 @@ def validate(model, dataloader, criterion, device):
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Validating"): 
             images, questions, answers = batch['image'], batch['question'], batch['answer']
-#             print(images) 
             images = images.to(device)
             questions = questions.to(device)
             answers = answers.to(device)
 
             logits, gen_seq = model(images, questions)
-            print(f'the generated sequence: {gen_seq}')
+            gen_seq_d = tokenizer.decode(gen_seq[0], skip_special_tokens=True)
+            print(f'the generated sequence: {gen_seq_d}')
+
             if logits.size(1) < answers.size(1):
                 answers = answers[:, :logits.size(1)]
             elif logits.size(1) > answers.size(1):
                 logits = logits[:, :answers.size(1)]
             logits_reshaped = logits.contiguous().view(-1, logits.size(-1))
             answers_reshaped = answers.contiguous().view(-1)
+            
+            total += answers_reshaped.size(0)
+
+            _, predicted = logits_reshaped.max(1)
+            correct += (predicted == answers_reshaped).sum().item()
 
             loss = criterion(logits_reshaped, answers_reshaped)
             running_loss += loss.item()
-    
+
     avg_loss = running_loss / len(dataloader)
-    accuracy = 100 * correct / total
+    accuracy = 100 * correct / total if total > 0 else 0
     return avg_loss, accuracy
 
 best_val_loss = float('inf')
