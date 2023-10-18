@@ -34,10 +34,12 @@ class VQAModel(nn.Module):
         image_features = image_features.unsqueeze(dim=1)
         combined_features = self.mapper(image_features) + question_features
         print("Combined features shape:", combined_features.shape)
-        output = self.gpt2_model.generate(inputs_embeds=combined_features)
+        outputs = self.gpt2_model(inputs_embeds=combined_features)
+        logits = outputs.logits
+        generated_sequence = self.gpt2_model.generate(inputs_embeds=combined_features, max_length=36, pad_token_id=self.gpt2_model.config.pad_token_id)
 
-        return output
-
+        return logits, generated_sequence
+    
 if __name__ == '__main__':
     model = VQAModel()
     encoder = VisionEncoder()
