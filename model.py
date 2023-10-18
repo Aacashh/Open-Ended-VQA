@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import CLIPImageProcessor, CLIPProcessor, CLIPModel, GPT2LMHeadModel, GPT2Tokenizer
+from transformers import CLIPProcessor, CLIPModel, GPT2LMHeadModel
 from typing import Tuple
 from vision_encoder import VisionEncoder
 from PIL import Image
@@ -24,24 +24,17 @@ class VQAModel(nn.Module):
 
         self.clip_model = CLIPModel.from_pretrained("flaviagiammarino/pubmed-clip-vit-base-patch32")
         self.clip_processor = CLIPProcessor.from_pretrained("flaviagiammarino/pubmed-clip-vit-base-patch32")
-        # self.clip_encode = CLIPImageEncoder.from_pretrained("flaviagiammarino/pubmed-clip-vit-base-patch32")
-        self.gpt2_tokenizer = GPT2Tokenizer.from_pretrained("cemilcelik/distilgpt2_pubmed")
         self.gpt2_model = GPT2LMHeadModel.from_pretrained("cemilcelik/distilgpt2_pubmed")
                 
         self.mapper = MLP(sizes=(512, 768, 768))
 
     def forward(self, images, questions):
-        # preprocess = CLIPImageProcessor.from_pretrained('flaviagiammarino/pubmed-clip-vit-base-patch32')
-        
-        # image = preprocess(image, return_tensors="pt")
-        # image_features = self.clip_model.encode_image(images)
-        image_features = model.get_image_features(images)
-        input_ids = self.gpt2_tokenizer(questions, return_tensors="pt", truncation=True, padding=True).input_ids
-        question_features = self.gpt2_model.base_model(input_ids).last_hidden_state[:, 0, :]  # Extracting the [CLS] token's features
-
+        image_features = self.clip_model.get_image_features(images)
+        question_features = self.gpt2_model.base_model(questions).last_hidden_state[:, 0, :]
+        image_features = image_features.unsqueeze(dim=1)
         combined_features = self.mapper(image_features) + question_features
-
-        output = self.gpt2_model.generate(input_ids=None, max_length=50, encoder_outputs=(combined_features,))
+        print("Combined features shape:", combined_features.shape)
+        output = self.gpt2_model.generate(inputs_embeds=combined_features)
 
         return output
 
@@ -49,7 +42,6 @@ if __name__ == '__main__':
     model = VQAModel()
     encoder = VisionEncoder()
     path = './data/img/synpic676.jpg'
-    # sample_image_features = encoder([sample_image])
     sample_image = Image.open(path)
     sample_question = ["What does the area on the right side of the field show?"]
     output = model(sample_image, sample_question)

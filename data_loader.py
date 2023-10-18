@@ -3,9 +3,8 @@ import os
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
-# from torchvision import transforms
 from PIL import Image
-from transformers import CLIPImageProcessor #  GPT2LMHeadModel, GPT2Tokenizer
+from transformers import CLIPImageProcessor, GPT2Tokenizer
 
 class VQARADDataset(Dataset):
     def __init__(self, csv_file, img_dir,): #  transform=None
@@ -18,10 +17,8 @@ class VQARADDataset(Dataset):
         """
         self.vqa_rad_frame = pd.read_csv(csv_file)
         self.img_dir = img_dir
-        # self.transform = transform
-        # self.gpt2_tokenizer = GPT2Tokenizer.from_pretrained("cemilcelik/distilgpt2_pubmed")
-        # self.gpt2_model = GPT2LMHeadModel.from_pretrained("cemilcelik/distilgpt2_pubmed")
         self.preprocess = CLIPImageProcessor.from_pretrained('flaviagiammarino/pubmed-clip-vit-base-patch32')
+        self.gpt2_tokenizer = GPT2Tokenizer.from_pretrained("cemilcelik/distilgpt2_pubmed")
 
     def __len__(self):
         return len(self.vqa_rad_frame)
@@ -30,19 +27,19 @@ class VQARADDataset(Dataset):
         img_name = os.path.join(self.img_dir, self.vqa_rad_frame.iloc[idx, 0] + '.jpg')
         image = Image.open(img_name)
         image = self.preprocess(image, return_tensors="pt")
-        question = self.vqa_rad_frame.iloc[idx, 1]
-        # input_ids_q = self.gpt2_tokenizer(questions, return_tensors="pt", truncation=True, padding=True).input_ids
-        # question_features = self.gpt2_model.base_model(input_ids_q).last_hidden_state[:, 0, :]
-        answer = self.vqa_rad_frame.iloc[idx, 2]
+        questions = self.vqa_rad_frame.iloc[idx, 1]
+        question_id = self.gpt2_tokenizer(questions, return_tensors="pt", truncation=True, padding="max_length", max_length=36).input_ids.squeeze(0)
+        print('question_id size: '+ f'{question_id.size()}')
+        answers = self.vqa_rad_frame.iloc[idx,2]
+        answer_id = self.gpt2_tokenizer(answers, return_tensors="pt", truncation=True, padding="max_length", max_length=36).input_ids.squeeze(0)
+        print('answer_id size: '+ f'{answer_id.size()}')
         
-        sample = {'image': image['pixel_values'], 'question': question, 'answer': answer}
-        
-        # if self.transform:
-        #     sample['image'] = self.transform(sample['image'])
+        sample = {'image': image['pixel_values'].squeeze(0), 'question': question_id, 'answer': answer_id}
         
         return sample
 
-def get_loaders(csv_file='./data/vqa_rad.csv', img_dir='./data/img/', batch_size=32, transform=None, split_ratio=(0.8, 0.1, 0.1)):
+
+def get_loaders(csv_file='./data/vqa_rad.csv', img_dir='./data/img/', batch_size=32, split_ratio=(0.8, 0.1, 0.1)):
     """
     Returns training, validation, and test data loaders.
     Args:
@@ -71,17 +68,10 @@ def get_loaders(csv_file='./data/vqa_rad.csv', img_dir='./data/img/', batch_size
     return train_loader, val_loader, test_loader
 
 if __name__ == "__main__":
-
-    # transform = transforms.Compose([
-    #     transforms.Resize((224, 224)),
-    #     transforms.ToTensor()])
     train_loader, val_loader, test_loader = get_loaders()
 
     for batch in train_loader:
-        # Example of how to access the data in train_loader
         images, questions, answers = batch['image'], batch['question'], batch['answer']
-        
-        # Just printing the shape and first item to see if everything is working correctly
         print(images.size())
         print(images)
         print(questions[0])

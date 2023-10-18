@@ -65,17 +65,6 @@ def validate(model, dataloader, criterion, device):
 
 best_val_loss = float('inf')
 for epoch in range(EPOCHS):
-    for batch in train_loader:
-        # Example of how to access the data in train_loader
-        images, questions, answers = batch['image'], batch['question'], batch['answer']
-        
-        # Just printing the shape and first item to see if everything is working correctly
-        print(images.size())
-        print(images)
-        print(images.dtype)
-        print(questions[0])
-        print(answers[0])
-        break
     train_loss = train(model, train_loader, criterion, optimizer, device)
     val_loss, val_accuracy = validate(model, val_loader, criterion, device)
     
