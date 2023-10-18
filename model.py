@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import CLIPProcessor, CLIPModel, GPT2LMHeadModel, GPT2Tokenizer
+from transformers import CLIPImageProcessor, CLIPProcessor, CLIPModel, GPT2LMHeadModel, GPT2Tokenizer
 from typing import Tuple
 from vision_encoder import VisionEncoder
 from PIL import Image
@@ -24,16 +24,18 @@ class VQAModel(nn.Module):
 
         self.clip_model = CLIPModel.from_pretrained("flaviagiammarino/pubmed-clip-vit-base-patch32")
         self.clip_processor = CLIPProcessor.from_pretrained("flaviagiammarino/pubmed-clip-vit-base-patch32")
-        
+        # self.clip_encode = CLIPImageEncoder.from_pretrained("flaviagiammarino/pubmed-clip-vit-base-patch32")
         self.gpt2_tokenizer = GPT2Tokenizer.from_pretrained("cemilcelik/distilgpt2_pubmed")
         self.gpt2_model = GPT2LMHeadModel.from_pretrained("cemilcelik/distilgpt2_pubmed")
                 
         self.mapper = MLP(sizes=(512, 768, 768))
 
     def forward(self, images, questions):
+        # preprocess = CLIPImageProcessor.from_pretrained('flaviagiammarino/pubmed-clip-vit-base-patch32')
         
-        image_features = self.clip_model.encode_image(images)
-
+        # image = preprocess(image, return_tensors="pt")
+        # image_features = self.clip_model.encode_image(images)
+        image_features = model.get_image_features(images)
         input_ids = self.gpt2_tokenizer(questions, return_tensors="pt", truncation=True, padding=True).input_ids
         question_features = self.gpt2_model.base_model(input_ids).last_hidden_state[:, 0, :]  # Extracting the [CLS] token's features
 

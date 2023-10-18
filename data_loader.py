@@ -3,11 +3,12 @@ import os
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+# from torchvision import transforms
 from PIL import Image
+from transformers import CLIPImageProcessor #  GPT2LMHeadModel, GPT2Tokenizer
 
 class VQARADDataset(Dataset):
-    def __init__(self, csv_file, img_dir, transform=None):
+    def __init__(self, csv_file, img_dir,): #  transform=None
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -17,22 +18,27 @@ class VQARADDataset(Dataset):
         """
         self.vqa_rad_frame = pd.read_csv(csv_file)
         self.img_dir = img_dir
-        self.transform = transform
+        # self.transform = transform
+        # self.gpt2_tokenizer = GPT2Tokenizer.from_pretrained("cemilcelik/distilgpt2_pubmed")
+        # self.gpt2_model = GPT2LMHeadModel.from_pretrained("cemilcelik/distilgpt2_pubmed")
+        self.preprocess = CLIPImageProcessor.from_pretrained('flaviagiammarino/pubmed-clip-vit-base-patch32')
 
     def __len__(self):
         return len(self.vqa_rad_frame)
 
     def __getitem__(self, idx):
-        img_name = os.path.join(self.img_dir, self.vqa_rad_frame.iloc[idx, 0])
+        img_name = os.path.join(self.img_dir, self.vqa_rad_frame.iloc[idx, 0] + '.jpg')
         image = Image.open(img_name)
-        
+        image = self.preprocess(image, return_tensors="pt")
         question = self.vqa_rad_frame.iloc[idx, 1]
+        # input_ids_q = self.gpt2_tokenizer(questions, return_tensors="pt", truncation=True, padding=True).input_ids
+        # question_features = self.gpt2_model.base_model(input_ids_q).last_hidden_state[:, 0, :]
         answer = self.vqa_rad_frame.iloc[idx, 2]
         
-        sample = {'image': image, 'question': question, 'answer': answer}
+        sample = {'image': image['pixel_values'], 'question': question, 'answer': answer}
         
-        if self.transform:
-            sample['image'] = self.transform(sample['image'])
+        # if self.transform:
+        #     sample['image'] = self.transform(sample['image'])
         
         return sample
 
@@ -49,7 +55,7 @@ def get_loaders(csv_file='./data/vqa_rad.csv', img_dir='./data/img/', batch_size
 
     assert sum(split_ratio) == 1, "Split ratios should sum to 1."
 
-    dataset = VQARADDataset(csv_file=csv_file, img_dir=img_dir, transform=transform)
+    dataset = VQARADDataset(csv_file=csv_file, img_dir=img_dir) #, transform=transform
     
     total_size = len(dataset)
     train_size = int(split_ratio[0] * total_size)
@@ -66,17 +72,18 @@ def get_loaders(csv_file='./data/vqa_rad.csv', img_dir='./data/img/', batch_size
 
 if __name__ == "__main__":
 
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor()])
-    train_loader, val_loader, test_loader = get_loaders(transform=transform)
+    # transform = transforms.Compose([
+    #     transforms.Resize((224, 224)),
+    #     transforms.ToTensor()])
+    train_loader, val_loader, test_loader = get_loaders()
 
     for batch in train_loader:
         # Example of how to access the data in train_loader
         images, questions, answers = batch['image'], batch['question'], batch['answer']
         
         # Just printing the shape and first item to see if everything is working correctly
-        print(images.shape)
+        print(images.size())
+        print(images)
         print(questions[0])
         print(answers[0])
         break
