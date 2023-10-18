@@ -29,10 +29,10 @@ class VQARADDataset(Dataset):
         image = self.preprocess(image, return_tensors="pt")
         questions = self.vqa_rad_frame.iloc[idx, 1]
         question_id = self.gpt2_tokenizer(questions, return_tensors="pt", truncation=True, padding="max_length", max_length=36).input_ids.squeeze(0)
-        print('question_id size: '+ f'{question_id.size()}')
-        answers = self.vqa_rad_frame.iloc[idx,2]
-        answer_id = self.gpt2_tokenizer(answers, return_tensors="pt", truncation=True, padding="max_length", max_length=36).input_ids.squeeze(0)
-        print('answer_id size: '+ f'{answer_id.size()}')
+        # print('question_id size: '+ f'{question_id.size()}')
+        answers = self.vqa_rad_frame.iloc[idx, 2] + " <END>"
+        answer_id = self.gpt2_tokenizer(answers, return_tensors="pt", truncation=True, padding="max_length", max_length=37).input_ids.squeeze(0)  # One extra for the end token.
+        # print('answer_id size: '+ f'{answer_id.size()}')
         
         sample = {'image': image['pixel_values'].squeeze(0), 'question': question_id, 'answer': answer_id}
         

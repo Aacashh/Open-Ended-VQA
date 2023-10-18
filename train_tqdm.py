@@ -10,7 +10,7 @@ tokenizer = GPT2Tokenizer.from_pretrained("cemilcelik/distilgpt2_pubmed")
 BATCH_SIZE = 16
 EPOCHS = 10
 LEARNING_RATE = 1e-4
-MODEL_PATH = './models/best_model.pth'
+MODEL_PATH = '/kaggle/working/best_model.pth'
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 train_loader, val_loader, _ = get_loaders(batch_size=BATCH_SIZE)
